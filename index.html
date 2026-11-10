@@ -28,8 +28,6 @@
     messagingSenderId: "970712680233",
     appId: "1:970712680233:web:9613d2fa7aac98d91fd938"
   };
-  // Correos autorizados como tesorero / administrador (deben coincidir con firestore.rules)
-  var E = { adminEmails: ["tesorero@ejemplo.com"] };
   if (!window.firebase) { window.FB = { enabled: false }; console.warn('Firebase desactivado: no cargaron las librerías'); return; }
   firebase.initializeApp(firebaseConfig);
   var auth = firebase.auth(), db = firebase.firestore();
@@ -43,9 +41,7 @@
     try { auth.setPersistence(firebase.auth.Auth.Persistence.NONE); } catch (e) {}
   }
 
-  var admins = (E.adminEmails || []).map(function (x) { return String(x).trim().toLowerCase(); });
-  var deniedFlag = false;
-  var clean = function (x) { return JSON.parse(JSON.stringify(x)); }; // Firestore no admite undefined
+    var clean = function (x) { return JSON.parse(JSON.stringify(x)); }; // Firestore no admite undefined
 
   var MSG = {
     'auth/invalid-credential': 'Correo o contraseña incorrectos',
@@ -79,16 +75,11 @@
     enabled: true,
 
     /* ---- Authentication ---- */
+    // Acceso: solo entran las cuentas creadas a mano en Firebase Authentication (administrador y tesorero)
     onAuth: function (cb) {
-      return auth.onAuthStateChanged(function (u) {
-        if (u && admins.length && admins.indexOf((u.email || '').toLowerCase()) < 0) {
-          deniedFlag = true; auth.signOut(); return;      // correo sin permiso de admin
-        }
-        if (u) deniedFlag = false;
-        cb(u, !u && deniedFlag);
-      });
+      return auth.onAuthStateChanged(function (u) { cb(u, false); });
     },
-    login: function (em, pw) { deniedFlag = false; return auth.signInWithEmailAndPassword(em, pw); },
+    login: function (em, pw) { return auth.signInWithEmailAndPassword(em, pw); },
     logout: function () { return auth.signOut(); },
     email: function () { return (auth.currentUser && auth.currentUser.email) || ''; },
     msg: msg, fail: fail,
