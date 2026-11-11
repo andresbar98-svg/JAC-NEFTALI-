@@ -297,6 +297,20 @@ function Egreso({e,kind,S,onClose}){
  <div class="grid grid-cols-2 gap-6 mt-10 text-xs text-center"><div class="border-t border-slate-800 pt-1">Tesorero</div><div class="border-t border-slate-800 pt-1">Recibí / Responsable</div></div></div>
  <${Actions} text=${txt} onClose=${onClose}/><//>`}
 
+function EgresoDia({fecha,items,S,onClose}){
+ const tot=items.reduce((n,x)=>n+x.valor,0),resp=[...new Set(items.map(x=>x.resp).filter(Boolean))].join(', '),prov=[...new Set(items.map(x=>x.prov).filter(Boolean))].join(', ');
+ const nom=x=>x.item+(x.diam?' Ø '+x.diam:'');
+ const txt=`${S.nombre}\nComprobante de egreso - ${fd(fecha)}\n`+items.map(x=>'• '+nom(x)+(x.cant?' x'+x.cant+' a '+fmt(x.unit):'')+': '+fmt(x.valor)).join('\n')+(resp?'\nCompró: '+resp:'')+(prov?'\nProveedor: '+prov:'')+'\nTOTAL: '+fmt(tot);
+ return html`<${Modal} onClose=${onClose}><div id="paper" class="bg-white text-slate-900 rounded-xl p-5 shadow-xl">
+ <div class="text-center border-b-2 border-slate-800 pb-2 mb-3"><div class="font-bold text-lg">${S.nombre}</div><div class="text-xs">NIT ${S.nit}</div><div class="font-semibold mt-1">COMPROBANTE DE EGRESO N° CD-${String(fecha||'').replace(/\D/g,'')}</div></div>
+ <${Row} k="Fecha" v=${fd(fecha)}/><${Row} k="Concepto" v="Compra de materiales"/>${resp&&html`<${Row} k="Compró" v=${resp}/>`}${prov&&html`<${Row} k="Proveedor" v=${prov}/>`}
+ <table class="w-full text-xs my-3"><thead><tr class="border-b border-slate-400 text-left"><th class="py-1">Material</th><th class="py-1 text-center">Cant.</th><th class="py-1 text-right">V. unit.</th><th class="py-1 text-right">Total</th></tr></thead><tbody>
+ ${items.map(x=>html`<tr key=${x.id} class="border-b border-slate-200 align-top"><td class="py-1 pr-1">${nom(x)}</td><td class="py-1 text-center">${x.cant||''}</td><td class="py-1 text-right">${x.unit?fmt(x.unit):''}</td><td class="py-1 text-right font-semibold">${fmt(x.valor)}</td></tr>`)}
+ </tbody></table>
+ <div class="text-center my-4"><div class="text-xs text-slate-500">TOTAL DEL DÍA · ${items.length} ${items.length===1?'compra':'compras'}</div><div class="text-3xl font-extrabold">${fmt(tot)}</div></div>
+ <div class="grid grid-cols-2 gap-6 mt-10 text-xs text-center"><div class="border-t border-slate-800 pt-1">Tesorero</div><div class="border-t border-slate-800 pt-1">Recibí / Responsable</div></div></div>
+ <${Actions} text=${txt} onClose=${onClose}/><//>`}
+
 const CARGOS_D=['Presidente','Vicepresidente','Secretario','Tesorero','Fiscal','Vocal','Conciliador'];
 const COMITES=['Comité de Agua','Comité de Obras','Comité de Conciliación','Comité de Salud','Comité de Deportes'];
 function Directiva({A,D,setD}){
@@ -365,7 +379,7 @@ function CsvModal({A,C,S,onClose}){
  <div class="grid gap-2 mt-3"><button class=${bp} onClick=${share}>Compartir archivo</button><button class=${bs} onClick=${down}>Descargar</button><button class=${bs} onClick=${copy}>Copiar contenido</button><button class=${bs} onClick=${onClose}>Cerrar</button></div><p class="text-[11px] text-slate-400 mt-2">Confirme con Multicoop las columnas que exige su sistema.</p></div><//>`}
 
 function Cobros({A,C,setC,S,setM}){
- const[flt,setFlt]=useState('p'),[msg,setMsg]=useState(''),[nf,setNf]=useState({afId:'',anio:S.anio,valor:tf(S),fecha:hoy()}),[csv,setCsv]=useState(false);
+ const[flt,setFlt]=useState('p'),[ab,setAb]=useState({}),[msg,setMsg]=useState(''),[nf,setNf]=useState({afId:'',anio:S.anio,valor:tf(S),fecha:hoy()}),[csv,setCsv]=useState(false);
  const cargar=()=>{const n=A.filter(a=>a.activo&&!C.some(c=>c.afId===a.id&&c.anio===S.anio));
   if(!n.length)return setMsg('Todos los afiliados activos ya tienen el cobro '+S.anio);
   setC([...C,...n.map(a=>({id:uid(),afId:a.id,anio:S.anio,valor:tf(S),fecha:hoy(),pago:null}))]);setMsg(`Cobro ${S.anio} cargado a ${n.length} afiliados activos (${fmt(tf(S))} c/u)`)};
@@ -380,9 +394,10 @@ function Cobros({A,C,setC,S,setM}){
  ${csv&&html`<${CsvModal} A=${A} C=${C} S=${S} onClose=${()=>setCsv(false)}/>`}
  <div class="flex flex-wrap gap-2 mb-3">${[['n','+ Nuevo'],['p','Pendientes'],['g','Pagados'],['t','Todos']].map(([k,l])=>html`<button key=${k} class=${btn+(flt===k?'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900':'bg-slate-200 dark:bg-slate-700')} onClick=${()=>setFlt(k)}>${l}</button>`)}</div>
  ${flt==='n'&&html`<div class=${card}><label class="block text-sm mb-2"><span class="text-slate-500">Afiliado</span><select class=${inp} value=${nf.afId} onChange=${e=>setNf({...nf,afId:e.target.value})}><option value="">Seleccione...</option>${A.map(a=>html`<option key=${a.id} value=${a.id}>${a.nombre}${a.activo?'':' (sin servicio)'}</option>`)}</select></label><${F} l="Año" v=${nf.anio} s=${v=>setNf({...nf,anio:v})} t="number"/><${F} l="Valor" v=${nf.valor} s=${v=>setNf({...nf,valor:v})} t="number"/><${F} l="Fecha del cobro" v=${nf.fecha} s=${v=>setNf({...nf,fecha:v})} t="date"/><button class=${bp+' w-full'} onClick=${addN}>Guardar cobro</button></div>`}
- ${list.map(c=>{const a=A.find(x=>x.id===c.afId);if(!a)return null;return html`<div class=${card+' !p-3 !mb-2'} key=${c.id}><div class="flex justify-between"><div><div class="font-bold">${a.nombre}</div><div class="text-sm text-slate-500">Año ${c.anio} · ${fmt(c.valor)}${c.fecha?' · Cobro '+fd(c.fecha):''}</div><div class="text-xs text-slate-400">${a.activo?'Servicio desde '+(fd(a.desde)||'—'):'Sin servicio'}</div></div><span class=${'text-xs font-bold self-start px-2 py-1 rounded-full '+(c.pago?'bg-green-100 text-green-800':'bg-amber-100 text-amber-800')}>${c.pago?'Pagado':'Debe'}</span></div>
- ${c.pago&&html`<div class="text-xs text-slate-500 mt-1">${c.pago.metodo} · ${fd(c.pago.fecha)}</div>`}
- <div class="flex gap-2 mt-2"><button class=${bs+' !py-1.5 !text-xs'} onClick=${()=>setM({t:'rec',id:c.id})}>Recibo</button>${!c.pago&&html`<button class=${bp+' !py-1.5 !text-xs'} onClick=${()=>setM({t:'pay',id:c.id})}>Registrar pago</button>`}${c.pago&&html`<button class="${btn} !py-1.5 !text-xs text-red-600" onClick=${()=>setC(C.map(x=>x.id===c.id?{...x,pago:null}:x))}>Anular pago</button>`}</div></div>`})}
+ ${list.map(c=>{const a=A.find(x=>x.id===c.afId);if(!a)return null;const op=!!ab[c.id];return html`<div class=${card+' !p-3 !mb-2'} key=${c.id}>
+ <button type="button" class="w-full flex items-center gap-2 text-left" onClick=${()=>setAb({...ab,[c.id]:!op})} aria-expanded=${op}><span class="font-bold min-w-0 flex-1 truncate">${a.nombre}</span><span class=${'text-xs font-bold shrink-0 px-2 py-1 rounded-full '+(c.pago?'bg-green-100 text-green-800':'bg-amber-100 text-amber-800')}>${c.pago?'Pagado':'Debe'}</span><span class=${'shrink-0 text-base leading-none text-slate-400 '+(op?'rotate-180':'')}>▼</span></button>
+ ${op&&html`<div class="mt-2"><div class="text-sm text-slate-500">Año ${c.anio} · ${fmt(c.valor)}${c.fecha?' · Cobro '+fd(c.fecha):''}</div><div class="text-xs text-slate-400">${a.activo?'Servicio desde '+(fd(a.desde)||'—'):'Sin servicio'}</div>${c.pago&&html`<div class="text-xs text-slate-500 mt-0.5">${c.pago.metodo} · ${fd(c.pago.fecha)}</div>`}
+ <div class="flex gap-2 mt-2"><button class=${bs+' !py-1.5 !text-xs'} onClick=${()=>setM({t:'rec',id:c.id})}>Recibo</button>${!c.pago&&html`<button class=${bp+' !py-1.5 !text-xs'} onClick=${()=>setM({t:'pay',id:c.id})}>Registrar pago</button>`}${c.pago&&html`<button class="${btn} !py-1.5 !text-xs text-red-600" onClick=${()=>setC(C.map(x=>x.id===c.id?{...x,pago:null}:x))}>Anular pago</button>`}</div></div>`}</div>`})}
  ${flt!=='n'&&!list.length&&html`<div class="text-center text-slate-400 py-8">Sin registros</div>`}</div>`}
 
 function Egresos({fix,M,setM2,T,setT,setM}){
@@ -394,7 +409,7 @@ function Egresos({fix,M,setM2,T,setT,setM}){
  return html`<div><div class="grid grid-cols-3 gap-2 mb-3 text-center">${[['Materiales',tm,''],['M. obra pagada',tp,''],['Por pagar',tn,'text-red-600']].map(([l,v,c])=>html`<div key=${l} class=${card+' !mb-0 !p-2'}><div class="text-[11px] text-slate-500">${l}</div><div class=${'font-bold text-sm '+c}>${fmt(v)}</div></div>`)}</div>
  <div class="hidden">${[['m','Materiales'],['t','Mano de obra']].map(([k,l])=>html`<button key=${k} class=${btn+'flex-1 '+(sub===k?'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900':'bg-slate-200 dark:bg-slate-700')} onClick=${()=>setSub(k)}>${l}</button>`)}</div>
  ${sub==='m'?html`<div><div class=${card}><${F} l="Material comprado" v=${fm.item} s=${v=>setFm({...fm,item:v})} ph="Tubería, válvulas, cemento..."/><div class="grid grid-cols-2 gap-2"><${F} l="Diámetro (opcional)" v=${fm.diam} s=${v=>setFm({...fm,diam:v})} ph='Ej: 2"'/><label class="block text-sm mb-2"><span class="text-slate-500 dark:text-slate-400">Cantidad</span><input class=${inp} type="text" inputmode="decimal" value=${fm.cant} onInput=${e=>setFm({...fm,cant:e.target.value})}/></label></div><div class="grid grid-cols-2 gap-2"><${Money} l="Valor unitario" v=${fm.unit} s=${v=>setFm({...fm,unit:v})} ph="Ej: 12.000"/><div class="block text-sm mb-2"><span class="text-slate-500 dark:text-slate-400">Valor total</span><div class=${inp+' font-bold bg-emerald-900/40'}>${fmt(totM)}</div></div></div><${F} l="Proveedor / dónde se compró (opcional)" v=${fm.prov} s=${v=>setFm({...fm,prov:v})}/><${F} l="Fecha de la compra" v=${fm.fecha} s=${v=>setFm({...fm,fecha:v})} t="date"/><${F} l="Responsable que compró" v=${fm.resp} s=${v=>setFm({...fm,resp:v})}/><button class=${bp+' w-full'} onClick=${addM}>Registrar compra</button></div>
- ${M.map(x=>html`<div class=${card} key=${x.id}><div class="flex justify-between"><div class="font-semibold">${x.item}</div><div class="font-bold">${fmt(x.valor)}</div></div><div class="text-sm text-slate-500">${fd(x.fecha)} · ${x.resp}${x.prov?' · '+x.prov:''}</div>${(x.cant||x.diam)&&html`<div class="text-xs text-slate-400">${x.cant?x.cant+' × '+fmt(x.unit):''}${x.diam?' · Ø '+x.diam:''}</div>`}<div class="flex gap-2 mt-2"><button class=${bs} onClick=${()=>setM({t:'eg',k:'m',id:x.id})}>Comprobante</button><button class="${btn} text-red-600" onClick=${()=>setM2(M.filter(y=>y.id!==x.id))}>Borrar</button></div></div>`)}</div>`
+ ${(()=>{const g={};M.forEach(x=>{const k=x.fecha||'';(g[k]=g[k]||[]).push(x)});return Object.keys(g).sort().reverse().map(f=>{const it=g[f],tot=it.reduce((n,x)=>n+x.valor,0);return html`<div key=${f||'sf'} class="mb-4"><div class="flex items-center justify-between gap-2 mb-2 px-1"><div><div class="font-bold">${f?fd(f):'Sin fecha'}</div><div class="text-xs text-slate-500">${it.length} ${it.length===1?'compra':'compras'} · ${fmt(tot)}</div></div><button class=${bp+' !py-1.5 !text-xs'} onClick=${()=>setM({t:'egd',fecha:f})}>Comprobante del día</button></div>${it.map(x=>html`<div class=${card} key=${x.id}><div class="flex justify-between"><div class="font-semibold">${x.item}</div><div class="font-bold">${fmt(x.valor)}</div></div><div class="text-sm text-slate-500">${fd(x.fecha)} · ${x.resp}${x.prov?' · '+x.prov:''}</div>${(x.cant||x.diam)&&html`<div class="text-xs text-slate-400">${x.cant?x.cant+' × '+fmt(x.unit):''}${x.diam?' · Ø '+x.diam:''}</div>`}<div class="flex gap-2 mt-2"><button class=${bs} onClick=${()=>setM({t:'eg',k:'m',id:x.id})}>Comprobante</button><button class="${btn} text-red-600" onClick=${()=>setM2(M.filter(y=>y.id!==x.id))}>Borrar</button></div></div>`)}</div>`})})()}</div>`
  :html`<div><div class=${card}><${F} l="Detalle del trabajo realizado" v=${ft.detalle} s=${v=>setFt({...ft,detalle:v})}/><${F} l="Fontaneros / personas que lo hicieron" v=${ft.personas} s=${v=>setFt({...ft,personas:v})}/><${F} l="Valor mano de obra" v=${ft.valor} s=${v=>setFt({...ft,valor:v})} t="number"/>
  <label class="block text-sm mb-3"><span class="text-slate-500">Estado de pago</span><select class=${inp} value=${ft.pagado} onChange=${e=>setFt({...ft,pagado:e.target.value})}><option value="false">Pendiente por pagar</option><option value="true">Pagada</option></select></label><button class=${bp+' w-full'} onClick=${addT}>Registrar mantenimiento</button></div>
  ${T.map(x=>html`<div class=${card} key=${x.id}><div class="flex justify-between gap-2"><div class="font-semibold">${x.detalle}</div><div class="font-bold">${fmt(x.valor)}</div></div><div class="text-sm text-slate-500">${fd(x.fecha)} · ${x.personas}</div>
@@ -498,11 +513,31 @@ function Estado(){const[st,setSt]=useState(FBX.enabled?(navigator.onLine?'wait':
  useEffect(()=>{if(FBX.enabled)return FBX.onStatus(setSt)},[]);
  const c={ok:['bg-green-500','En línea y conectado a la base de datos'],wait:['bg-amber-400 animate-pulse','Conectando con la base de datos…'],off:['bg-red-500','Sin internet: los cambios se guardan en el dispositivo'],none:['bg-slate-400','Sin conexión a Firebase: la app no encontró env.js / firebase.js y guarda solo en este dispositivo']}[st];
  return html`<button type="button" role="status" title=${c[1]} aria-label=${c[1]} onClick=${()=>alert(c[1])} class="shrink-0 flex items-center justify-center w-7 h-9"><span class=${'block w-3.5 h-3.5 rounded-full ring-2 ring-white/40 '+c[0]}></span></button>`}
+/* Botón "atrás" del celular: cierra la ventana abierta o vuelve al inicio, en vez de salir de la página */
+function useBackNav(tab,setTab,m,setM){
+ const lvl=(tab!=='h'?1:0)+(m?1:0),hist=useRef(0),skip=useRef(0),cur=useRef({});
+ cur.current={tab,m,setTab,setM};
+ useEffect(()=>{
+  try{history.replaceState({acu:0},'')}catch(e){}
+  const pop=()=>{
+   if(skip.current>0){skip.current--;return}
+   const c=cur.current;hist.current=Math.max(0,hist.current-1);
+   if(c.m)c.setM(null);else if(c.tab!=='h')c.setTab('h');
+  };
+  window.addEventListener('popstate',pop);
+  return()=>window.removeEventListener('popstate',pop);
+ },[]);
+ useEffect(()=>{
+  if(lvl>hist.current){for(let i=hist.current;i<lvl;i++){try{history.pushState({acu:i+1},'')}catch(e){}}hist.current=lvl}
+  else if(lvl<hist.current){const d=hist.current-lvl;hist.current=lvl;skip.current++;try{history.go(-d)}catch(e){skip.current--}}
+ },[lvl]);
+}
 function App(){
  const au=useAuth(),live=FBX.enabled&&!!au.user;
  const[S,setS]=useCloud('acu_s',S0,'ajustes',live),[A,setA]=useCloud('acu_a',A0,'afiliados',live),[C,setC]=useCloud('acu_c',C0,'pagos',live),[M,setM2]=useCloud('acu_m',M0,'egresos_materiales',live,{desc:1}),[T,setT]=useCloud('acu_t',T0,'egresos_mano_obra',live,{desc:1}),[D,setD]=useCloud('acu_d',[],'directiva',live);
  const[fe,setFe]=useState('');useEffect(()=>{const h=e=>setFe(e.detail||'');window.addEventListener('fb-error',h);return()=>window.removeEventListener('fb-error',h)},[]);
  const[tab,setTab]=useState('h'),[m,setM]=useState(null),[fp,setFp]=useState(hoy());useEffect(()=>{if(m&&m.t==='pay')setFp(hoy())},[m]);
+ useBackNav(tab,setTab,m,setM);
  const titulos={a:'Usuarios',c:'Pagos',t:'Arreglos de la red',m:'Compras',p:'Periodo y tarifa',s:'Ajustes'};
  const cl=()=>setM(null),cobro=m&&m.t!=='eg'&&C.find(c=>c.id===m.id),af=cobro&&A.find(a=>a.id===cobro.afId);
  const pay=metodo=>{setC(C.map(c=>c.id===m.id?{...c,pago:{fecha:fp||hoy(),metodo}}:c));cl()};
@@ -513,6 +548,7 @@ function App(){
  
  ${m&&m.t==='rec'&&cobro&&af&&html`<${Recibo} c=${cobro} af=${af} S=${S} onClose=${cl}/>`}
  ${m&&m.t==='pay'&&cobro&&af&&html`<${Modal} onClose=${cl}><div class=${card}><div class="font-bold">Registrar pago</div><div class="text-sm text-slate-500 mb-3">${af.nombre} · ${fmt(cobro.valor)}</div><label class="block text-xs text-slate-400 mb-1">Fecha del pago</label><input type="date" class=${inp+' mb-3'} value=${fp} max=${hoy()} onInput=${e=>setFp(e.target.value)}/><div class="grid gap-2"><button class=${bp} onClick=${()=>pay('Efectivo')}>💵 Efectivo (entregado al tesorero)</button><button class=${bp} onClick=${()=>pay('Consignación/Transferencia')}>🏦 Consignación / Transferencia Multicoop</button><button class=${bs} onClick=${cl}>Cancelar</button></div></div><//>`}
+ ${m&&m.t==='egd'&&html`<${EgresoDia} fecha=${m.fecha} items=${M.filter(x=>(x.fecha||'')===m.fecha)} S=${S} onClose=${cl}/>`}
  ${m&&m.t==='eg'&&(()=>{const e=(m.k==='m'?M:T).find(x=>x.id===m.id);return e&&html`<${Egreso} e=${e} kind=${m.k} S=${S} onClose=${cl}/>`})()}</div>`}
 ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
 </script></body></html>
