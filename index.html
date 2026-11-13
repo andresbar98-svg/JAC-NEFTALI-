@@ -307,7 +307,7 @@ function Recibo({c,C,af,S,onClose}){
  const cta=(S.cuenta||'').replace(/\D/g,''),conv=S.usaConv&&S.convenio,bc=idn.replace(/\D/g,'')?code:'';
  const txt=`${S.nombre}\nRecibo ${c.anio} - ${af.nombre}\n${sa.v>0?'Valor '+c.anio+': '+fmt(c.valor)+'\nSaldo anterior ('+sa.anios.join(', ')+'): '+fmt(sa.v)+'\nTotal a pagar: '+fmt(tot):'Valor: '+fmt(c.valor)}\n${c.pago?'PAGADO ('+c.pago.metodo+' '+fd(c.pago.fecha)+')':S.usaConv&&S.convenio?'Pagar en Multicoop, convenio '+S.convenio+', referencia '+ref:cta?'Consignar a la cuenta '+cta+' o pagar al tesorero':'Pagar al tesorero'}`;
  const valor=Number(tot).toLocaleString('es-CO');
- const inst=conv?'Pague en Multicoop (Red Coopcentral) con el convenio '+S.convenio+' o consigne y entregue el soporte al tesorero.':'Pague en efectivo al tesorero o consigne a la cuenta '+(cta||'de la junta')+' y entregue el soporte.';
+ const inst=conv?'Pague en Multicoop y envíe el comprobante al tesorero.':'Pague en efectivo al tesorero o consigne a la cuenta '+(cta||'de la junta')+' y entregue el soporte.';
  /* Todas las medidas están en píxeles de la imagen original (1024 x 1536) y se escalan solas */
  const pos=(x0,y0,x1,y1)=>({position:'absolute',left:(x0/10.24)+'%',top:(y0/15.36)+'%',width:((x1-x0)/10.24)+'%',height:((y1-y0)/15.36)+'%'});
  const fs=n=>(n/10.24).toFixed(3)+'cqw';
@@ -333,7 +333,7 @@ function Recibo({c,C,af,S,onClose}){
   ${c.pago&&html`<div style=${{...pos(600,512,992,722),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:fs(9)+' solid #15803d',borderRadius:fs(22),color:'#15803d',background:'rgba(255,255,255,.15)',opacity:.72,transform:'rotate(-6deg)',boxSizing:'border-box',fontFamily:SANS,fontWeight:800,lineHeight:1.15,textAlign:'center'}}><div style=${{fontSize:fs(86),letterSpacing:fs(5)}}>PAGADO</div><div style=${{fontSize:fs(42),fontWeight:800}}>${c.pago.metodo==='Efectivo'?'Efectivo':'Transferencia'}</div><div style=${{fontSize:fs(38),fontWeight:700}}>${fd(c.pago.fecha)}</div></div>`}
   <div style=${{...pos(...R.bar),display:'flex',flexDirection:'column',justifyContent:bc?'space-between':'center',alignItems:'stretch',overflow:'hidden'}}>
    ${bc&&html`<div style=${{flex:'1 1 0',minHeight:0,marginBottom:fs(4),background:'#fff',overflow:'hidden'}}><${Barcode} code=${bc} fill=${1}/></div><div style=${{fontFamily:'monospace',fontSize:fs(19),lineHeight:1.2,color:'#222',whiteSpace:'nowrap',textAlign:'center'}}>${hum}</div>`}
-   <div style=${{fontFamily:SANS,fontSize:fs(21),fontWeight:700,lineHeight:1.2,color:NV,textAlign:'center'}}>${inst}</div>
+   <div style=${{fontFamily:SANS,fontSize:fs(26),fontWeight:700,lineHeight:1.2,color:NV,textAlign:'center',whiteSpace:'nowrap'}}>${inst}</div>
   </div>
  </div>
  <${Actions} text=${txt} onClose=${onClose} onPrint=${()=>window.print()}/><//>`}
