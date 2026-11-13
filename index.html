@@ -300,7 +300,7 @@ function saldoAnt(C,afId,anio,pagado){
 }
 function Recibo({c,C,af,S,onClose}){
  const sa=saldoAnt(C||[],af.id,c.anio,c.pago),tot=Number(c.valor)+sa.v;
- const ref=af.cedula.replace(/\D/g,'').padStart(10,'0').slice(-10),val=String(tot).padStart(10,'0'),f=c.anio+'1231';
+ const ref=refCed(af).replace(/\D/g,'').padStart(10,'0').slice(-10),val=String(tot).padStart(10,'0'),f=c.anio+'1231';
  const idn=String((S.usaConv&&S.convenio)?S.convenio:(S.cuenta||''));
  const code='\xf1415'+idn.replace(/\D/g,'').padStart(13,'0').slice(-13)+'8020'+ref+'\xf13900'+val+'\xf196'+f;
  const hum=`(415)${idn} (8020)${ref} (3900)${val} (96)${f}`;
@@ -320,7 +320,7 @@ function Recibo({c,C,af,S,onClose}){
   <img src=${RBG} alt="" style=${{position:'absolute',left:0,top:0,width:'100%',height:'100%',display:'block'}}/>
   ${Fld(S.nit||'',R.nit,42,{fw:900})}
   ${Fld(af.nombre,R.afi,41,L)}
-  ${Fld(fcc(af.cedula),R.ced,41,L)}
+  ${Fld(fcc(refCed(af)),R.ced,41,L)}
   ${Fld(af.predio,R.pre,41,L)}
   ${Fld(ftel(af.tel),R.tel,41,L)}
   ${Fld('01 Ene – 31 Dic',R.per,34,{cw:0.5})}
@@ -429,24 +429,51 @@ function Directiva({A,D,setD}){
    <div class="flex gap-2 mt-3"><button class=${bs+' flex-1'} onClick=${cerrar}>Cancelar</button><button class=${bp+' flex-1'} onClick=${guardar}>Asignar${sel.length?' ('+sel.length+')':''}</button></div></div>`}
   ${sec('d','JUNTA DIRECTIVA','⭐')}${sec('c','COMITÉS','👥')}</div>`}
 
+const ESTADOS=[['activo','Activo con servicio'],['matricula','Matrícula pagada - Pendiente instalación'],['sucesion','Sucesión / En traspaso'],['suspendido','Suspendido']];
+const estadoDe=a=>a.estado||(a.activo?'activo':'suspendido');
+const estadoTxt=k=>(ESTADOS.find(e=>e[0]===k)||[0,k])[1];
+const estadoCol=k=>({activo:'bg-green-500',matricula:'bg-amber-400',sucesion:'bg-purple-400',suspendido:'bg-slate-400'})[k]||'bg-slate-400';
+/* Cédula para Multicoop (recibo, código de barras y CSV): la del Pagador Autorizado si está llena; si no, la del titular */
+const refCed=a=>String(a.pagCedula||'').trim()||String(a.cedula||'');
+const anioDe=d=>{const m=/^(\d{4})/.exec(String(d||''));return m?+m[1]:null};
+const AF0=()=>({nombre:'',cedula:'',tel:'',sector:'',predio:'',fecha:hoy(),matricula:'',desde:'',estado:'activo',pagNombre:'',pagCedula:''});
+const afNorm=(f,sectores)=>({...f,nombre:String(f.nombre).trim(),sector:sectores.find(x=>x.toLowerCase()===String(f.sector||'').trim().toLowerCase())||String(f.sector||'').trim(),activo:f.estado==='activo'});
+function AfForm({f,setF,sectores}){
+ return html`<div><${F} l="Nombre completo" v=${f.nombre} s=${v=>setF({...f,nombre:v})}/><div class="grid grid-cols-2 gap-2"><${F} l="Cédula" v=${f.cedula} s=${v=>setF({...f,cedula:v})} t="number"/><${F} l="Celular" v=${f.tel} s=${v=>setF({...f,tel:v})} t="tel"/></div><div class="grid grid-cols-2 gap-2"><${F} l="Sector" v=${f.sector} s=${v=>setF({...f,sector:v})} ph="Ej. Centro"/><${F} l="Predio" v=${f.predio} s=${v=>setF({...f,predio:v})}/></div>${sectores.length>0&&html`<div class="mb-3"><div class="text-xs text-slate-400 mb-1">Sectores guardados (toque para elegir)</div><div class="flex flex-wrap gap-1">${sectores.map(x=>html`<button key=${x} type="button" class=${'px-3 py-1 rounded-full text-xs '+(String(f.sector||'').trim().toLowerCase()===x.toLowerCase()?'bg-emerald-600 text-white':'bg-slate-700 text-slate-200')} onClick=${()=>setF({...f,sector:x})}>${x}</button>`)}</div></div>`}
+ <div class="grid grid-cols-2 gap-2"><div class="min-w-0"><${F} l="Afiliación (Libro JAC)" v=${f.fecha} s=${v=>setF({...f,fecha:v})} t="date"/></div><div class="min-w-0"><${F} l="Pago de matrícula" v=${f.matricula} s=${v=>setF({...f,matricula:v})} t="date"/></div></div>
+ <div class="grid grid-cols-2 gap-2 items-end"><div class="min-w-0"><${F} l="Inicio del servicio" v=${f.desde} s=${v=>setF({...f,desde:v})} t="date"/></div><button type="button" class=${bs+' w-full !py-2.5 !text-xs mb-2'} onClick=${()=>f.matricula?setF({...f,desde:f.matricula}):alert('Primero indique la fecha de pago de matrícula')}>Igual a matrícula</button></div>
+ <label class="block text-sm mb-2"><span class="text-slate-500 dark:text-slate-400">Estado del servicio</span><select class=${inp} value=${f.estado} onChange=${e=>setF({...f,estado:e.target.value})}>${ESTADOS.map(([k,l])=>html`<option key=${k} value=${k}>${l}</option>`)}</select></label>
+ <div class="rounded-xl border border-slate-400/30 p-2 mb-3"><div class="text-xs text-slate-400 mb-1">Pagador autorizado / Responsable (opcional)</div><div class="grid grid-cols-2 gap-2"><${F} l="Nombre" v=${f.pagNombre} s=${v=>setF({...f,pagNombre:v})}/><${F} l="Cédula" v=${f.pagCedula} s=${v=>setF({...f,pagCedula:v})} t="number"/></div><div class="text-[11px] text-slate-400">Si tiene cédula, el recibo y el CSV de Multicoop usan la de este pagador.</div></div></div>`}
+function Ficha({a,A,setA,C,D,setD,setM,sectores,onClose}){
+ const[ed,setEd]=useState(false),[f,setF]=useState(null);
+ const est=estadoDe(a),cs=C.filter(c=>c.afId===a.id).sort((x,y)=>y.anio-x.anio),ult=cs.find(c=>!c.pago)||cs[0],pen=cs.filter(c=>!c.pago),cargos=D.filter(d=>d.afId===a.id).map(d=>d.cargo);
+ const start=()=>{setF({...AF0(),...a,estado:est,matricula:a.matricula||'',desde:a.desde||'',pagNombre:a.pagNombre||'',pagCedula:a.pagCedula||''});setEd(true)};
+ const save=()=>{if(!String(f.nombre).trim()||!String(f.cedula).trim())return alert('Nombre y cédula son obligatorios');if(f.estado==='activo'&&!f.desde)return alert('Para un afiliado "Activo con servicio" indique la fecha de inicio del servicio');setA(A.map(x=>x.id===a.id?afNorm(f,sectores):x));setEd(false)};
+ return html`<${Modal} onClose=${ed?()=>{}:onClose}><div class=${card}>
+ ${ed?html`<div class="font-bold mb-3">Editar afiliado</div><${AfForm} f=${f} setF=${setF} sectores=${sectores}/><div class="grid grid-cols-2 gap-2"><button class=${bp} onClick=${save}>Guardar cambios</button><button class=${bs} onClick=${()=>setEd(false)}>Cancelar</button></div>`:html`
+ <div class="flex items-start gap-2 mb-2"><span class=${'w-3 h-3 rounded-full mt-1.5 shrink-0 '+estadoCol(est)}></span><div class="min-w-0 flex-1"><div class="font-bold text-lg leading-tight">${a.nombre}</div><div class="text-xs text-slate-400">${estadoTxt(est)}</div>${cargos.length>0&&html`<div class="text-[11px] text-emerald-300">⭐ ${cargos.join(' · ')}</div>`}</div></div>
+ <${Row} k="Cédula" v=${fcc(a.cedula)||'—'}/><${Row} k="Celular" v=${ftel(a.tel)||'—'}/><${Row} k="Sector" v=${a.sector||'—'}/><${Row} k="Predio" v=${a.predio||'—'}/>
+ <${Row} k="Afiliación (Libro JAC)" v=${fd(a.fecha)||'—'}/><${Row} k="Pago de matrícula" v=${fd(a.matricula)||'—'}/><${Row} k="Inicio del servicio" v=${fd(a.desde)||'—'}/>
+ ${(a.pagNombre||a.pagCedula)&&html`<${Row} k="Pagador autorizado" v=${(a.pagNombre||'—')+(a.pagCedula?' · CC '+fcc(a.pagCedula):'')}/>`}
+ <${Row} k="Cobros pendientes" v=${pen.length?pen.length+' · '+fmt(pen.reduce((t,c)=>t+(Number(c.valor)||0),0)):'Ninguno'}/>
+ <div class="grid grid-cols-2 gap-2 mt-3"><button class=${bp} onClick=${start}>✏️ Editar</button>${ult?html`<button class=${bs} onClick=${()=>{onClose();setM({t:'rec',id:ult.id})}}>Recibo</button>`:html`<span class="text-xs text-slate-400 self-center text-center">Sin cobros cargados</span>`}<button class=${btn+'text-red-600 bg-slate-200 dark:bg-slate-700'} onClick=${()=>{if(confirm('¿Eliminar afiliado y sus cobros?')){setA(A.filter(x=>x.id!==a.id));setD(D.filter(d=>d.afId!==a.id));onClose()}}}>Eliminar</button><button class=${bs} onClick=${onClose}>Cerrar</button></div>`}
+ </div><//>`}
 function Afiliados({A,setA,C,S,setM,D,setD}){
- const[q,setQ]=useState(''),[ab,setAb]=useState(null),[vista,setVista]=useState('l'),F0={nombre:'',cedula:'',tel:'',sector:'',predio:'',fecha:hoy(),activo:true,desde:hoy()},[f,setF]=useState(F0),sectores=[...new Set(A.map(a=>(a.sector||'').trim()).filter(Boolean))].sort();
- const add=()=>{if(!f.nombre||!f.cedula)return alert('Nombre y cédula son obligatorios');setA([...A,{...f,sector:sectores.find(s=>s.toLowerCase()===f.sector.trim().toLowerCase())||f.sector.trim(),id:uid(),desde:f.activo?f.desde:''}]);setF({...F0,fecha:hoy(),desde:hoy()});setVista('l')};
+ const[q,setQ]=useState(''),[fi,setFi]=useState(null),[vista,setVista]=useState('l'),[f,setF]=useState(AF0),sectores=[...new Set(A.map(a=>(a.sector||'').trim()).filter(Boolean))].sort();
+ const add=()=>{if(!String(f.nombre).trim()||!String(f.cedula).trim())return alert('Nombre y cédula son obligatorios');if(f.estado==='activo'&&!f.desde)return alert('Para un afiliado "Activo con servicio" indique la fecha de inicio del servicio');setA([...A,{...afNorm(f,sectores),id:uid()}]);setF(AF0());setVista('l')};
  const list=A.filter(a=>(a.nombre+a.cedula+a.predio+(a.sector||'')).toLowerCase().includes(q.toLowerCase()));
+ const fa=fi&&A.find(a=>a.id===fi);
  return html`<div><div class="flex gap-2 mb-3">${[['l','Lista'],['d','⭐ Directiva'],['n','+ Nuevo']].map(([k,l])=>html`<button key=${k} class=${btn+'flex-1 '+(vista===k?'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900':'bg-slate-200 dark:bg-slate-700')} onClick=${()=>setVista(k)}>${l}</button>`)}</div>${vista==='l'&&html`<input class=${inp+' !mb-3'} placeholder="Buscar afiliado..." value=${q} onChange=${e=>setQ(e.target.value)}/>`}
  ${vista==='d'&&html`<${Directiva} A=${A} D=${D} setD=${setD}/>`}
- ${vista==='n'&&html`<div class=${card}><${F} l="Nombre completo" v=${f.nombre} s=${v=>setF({...f,nombre:v})}/><div class="grid grid-cols-2 gap-2"><${F} l="Cédula" v=${f.cedula} s=${v=>setF({...f,cedula:v})} t="number"/><${F} l="Celular" v=${f.tel} s=${v=>setF({...f,tel:v})} t="tel"/></div><div class="grid grid-cols-2 gap-2"><${F} l="Sector" v=${f.sector} s=${v=>setF({...f,sector:v})} ph="Ej. Centro"/><${F} l="Predio" v=${f.predio} s=${v=>setF({...f,predio:v})}/></div>${sectores.length>0&&html`<div class="mb-3"><div class="text-xs text-slate-400 mb-1">Sectores guardados (toque para elegir)</div><div class="flex flex-wrap gap-1">${sectores.map(s=>html`<button key=${s} type="button" class=${'px-3 py-1 rounded-full text-xs '+(f.sector.trim().toLowerCase()===s.toLowerCase()?'bg-emerald-600 text-white':'bg-slate-700 text-slate-200')} onClick=${()=>setF({...f,sector:s})}>${s}</button>`)}</div></div>`}<${F} l="Fecha de registro" v=${f.fecha} s=${v=>setF({...f,fecha:v})} t="date"/><label class="flex items-center gap-2 text-sm mb-2"><input type="checkbox" checked=${f.activo} onChange=${e=>setF({...f,activo:e.target.checked})}/> Tiene servicio activo</label>${f.activo&&html`<${F} l="Servicio desde" v=${f.desde} s=${v=>setF({...f,desde:v})} t="date"/>`}<button class=${bp+' w-full'} onClick=${add}>Guardar afiliado</button></div>`}
- ${vista==='l'&&list.map(a=>{const cs=C.filter(c=>c.afId===a.id).sort((x,y)=>y.anio-x.anio),ult=cs.find(c=>!c.pago)||cs[0];
- const op=ab===a.id;
- return html`<div class=${card+' !p-0 !mb-2 overflow-hidden'} key=${a.id}><button type="button" class="w-full flex items-center gap-2 px-3 py-2.5 text-left" onClick=${()=>setAb(op?null:a.id)} aria-expanded=${op}><span class=${'w-2.5 h-2.5 rounded-full shrink-0 '+(a.activo?'bg-green-500':'bg-slate-400')}></span><span class="flex-1 min-w-0"><span class="block font-semibold truncate">${a.nombre}</span>${D.filter(d=>d.afId===a.id).length>0&&html`<span class="block text-[11px] text-emerald-300 truncate">⭐ ${D.filter(d=>d.afId===a.id).map(d=>d.cargo).join(' · ')}</span>`}</span><span class=${'text-slate-400 text-lg leading-none transition-transform '+(op?'rotate-90':'')}>›</span></button>
- ${op&&html`<div class="px-3 pb-3 border-t border-emerald-800/40 pt-2"><div class="flex justify-between items-start gap-2"><div><div class="text-sm text-slate-500">CC ${a.cedula} · ${a.tel}</div><div class="text-sm text-slate-500">${a.sector?a.sector+' · ':''}${a.predio}</div><div class="text-xs text-slate-400 mt-1">Afiliado desde ${fd(a.fecha)||'—'}</div>${a.activo&&html`<div class="text-xs text-emerald-300">Servicio desde ${fd(a.desde)||'—'}</div>`}</div>
- <button role="switch" aria-checked=${a.activo} onClick=${()=>setA(A.map(x=>x.id===a.id?{...x,activo:!x.activo,desde:!x.activo?hoy():x.desde}:x))} class=${'shrink-0 w-24 py-1 rounded-full text-xs font-bold '+(a.activo?'bg-green-600 text-white':'bg-slate-300 text-slate-700')}>${a.activo?'● Activo':'○ Inactivo'}</button></div>
- <div class="flex gap-2 mt-3">${ult?html`<button class=${bs} onClick=${()=>setM({t:'rec',id:ult.id})}>Generar/Compartir recibo</button>`:html`<span class="text-xs text-slate-400 self-center">Sin cobros cargados</span>`}<button class="${btn} text-red-600" onClick=${()=>confirm('¿Eliminar afiliado y sus cobros?')&&(setA(A.filter(x=>x.id!==a.id)),setD(D.filter(d=>d.afId!==a.id)))}>Eliminar</button></div></div>`}</div>`})}</div>`}
+ ${vista==='n'&&html`<div class=${card}><${AfForm} f=${f} setF=${setF} sectores=${sectores}/><button class=${bp+' w-full'} onClick=${add}>Guardar afiliado</button></div>`}
+ ${vista==='l'&&list.map(a=>{const est=estadoDe(a);
+ return html`<div class=${card+' !p-0 !mb-2 overflow-hidden'} key=${a.id}><button type="button" class="w-full flex items-center gap-2 px-3 py-2.5 text-left" onClick=${()=>setFi(a.id)}><span class=${'w-2.5 h-2.5 rounded-full shrink-0 '+estadoCol(est)}></span><span class="flex-1 min-w-0"><span class="block font-semibold truncate">${a.nombre}</span>${est!=='activo'&&html`<span class="block text-[11px] text-amber-300 truncate">${estadoTxt(est)}</span>`}${D.filter(d=>d.afId===a.id).length>0&&html`<span class="block text-[11px] text-emerald-300 truncate">⭐ ${D.filter(d=>d.afId===a.id).map(d=>d.cargo).join(' · ')}</span>`}</span><span class="text-slate-400 text-lg leading-none">›</span></button></div>`})}
+ ${fa&&html`<${Ficha} key=${fa.id} a=${fa} A=${A} setA=${setA} C=${C} D=${D} setD=${setD} setM=${setM} sectores=${sectores} onClose=${()=>setFi(null)}/>`}</div>`}
 
 function CsvModal({A,C,S,onClose}){
  const[sel,setSel]=useState('p');
  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
- const rows=C.filter(c=>c.anio===S.anio&&(sel==='t'||!c.pago)).map(c=>{const a=A.find(x=>x.id===c.afId);if(!a)return null;const sa=saldoAnt(C,c.afId,c.anio,c.pago);return[S.usaConv?S.convenio:'',a.cedula,a.nombre,c.anio,c.valor,sa.v,c.valor+sa.v,c.anio+'-12-31',c.pago?'PAGADO':'PENDIENTE']}).filter(Boolean);
+ const rows=C.filter(c=>c.anio===S.anio&&(sel==='t'||!c.pago)).map(c=>{const a=A.find(x=>x.id===c.afId);if(!a)return null;const sa=saldoAnt(C,c.afId,c.anio,c.pago);return[S.usaConv?S.convenio:'',refCed(a),a.nombre,c.anio,c.valor,sa.v,c.valor+sa.v,c.anio+'-12-31',c.pago?'PAGADO':'PENDIENTE']}).filter(Boolean);
  const csv='\ufeff'+[['Convenio','Referencia','Nombre','Periodo','Valor','Saldo anterior','Total a pagar','Fecha limite','Estado'],...rows].map(r=>r.map(q).join(',')).join('\r\n');
  const name='cobros_multicoop_'+S.anio+'.csv';
  const share=async()=>{try{const f=new File([csv],name,{type:'text/csv'});if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:name});else if(navigator.share)await navigator.share({title:name,text:csv});else alert('Use Descargar o Copiar')}catch(e){}};
@@ -459,10 +486,12 @@ function CsvModal({A,C,S,onClose}){
 
 function Cobros({A,C,setC,S,setM}){
  const[flt,setFlt]=useState('p'),[ab,setAb]=useState({}),[msg,setMsg]=useState(''),[nf,setNf]=useState({afId:'',anio:S.anio,valor:tf(S),fecha:hoy()}),[csv,setCsv]=useState(false);
- const cargar=()=>{const n=A.filter(a=>a.activo&&!C.some(c=>c.afId===a.id&&c.anio===S.anio));
-  if(!n.length)return setMsg('Todos los afiliados activos ya tienen el cobro '+S.anio);
-  setC([...C,...n.map(a=>({id:uid(),afId:a.id,anio:S.anio,valor:tf(S),fecha:hoy(),pago:null}))]);setMsg(`Cobro ${S.anio} cargado a ${n.length} afiliados activos (${fmt(tf(S))} c/u)`)};
- const addN=()=>{if(!nf.afId)return alert('Elija un afiliado');setC([...C,{id:uid(),afId:nf.afId,anio:+nf.anio,valor:+nf.valor,fecha:nf.fecha,pago:null}]);setFlt('p')};
+ const cargar=()=>{const yr=S.anio,sinF=[],tarde=[],ok=[];let ya=0;
+  A.filter(a=>estadoDe(a)==='activo').forEach(a=>{const y=anioDe(a.desde);if(y==null)sinF.push(a);else if(y>yr)tarde.push(a);else if(C.some(c=>c.afId===a.id&&c.anio===yr))ya++;else ok.push(a)});
+  const ex=(sinF.length?` · ${sinF.length} sin fecha de inicio de servicio, no se cobraron (${sinF.slice(0,3).map(a=>a.nombre).join(', ')}${sinF.length>3?'…':''})`:'')+(tarde.length?` · ${tarde.length} con servicio iniciado después de ${yr}, no se cobraron`:'');
+  if(!ok.length)return setMsg(`No hay cobros nuevos para ${yr}`+(ya?` (${ya} ya tenían el cobro)`:'')+ex);
+  setC([...C,...ok.map(a=>({id:uid(),afId:a.id,anio:yr,valor:tf(S),fecha:hoy(),pago:null}))]);setMsg(`Cobro ${yr} cargado a ${ok.length} afiliados activos con servicio (${fmt(tf(S))} c/u)`+ex)};
+ const addN=()=>{if(!nf.afId)return alert('Elija un afiliado');{const af=A.find(x=>x.id===nf.afId),y0=af&&anioDe(af.desde);if(y0&&+nf.anio<y0&&!confirm(`El servicio de ${af.nombre} inició en ${y0}. ¿Cobrar el año ${nf.anio} de todas formas?`))return}setC([...C,{id:uid(),afId:nf.afId,anio:+nf.anio,valor:+nf.valor,fecha:nf.fecha,pago:null}]);setFlt('p')};
  const rec=C.filter(c=>c.pago).reduce((s,c)=>s+c.valor,0),pen=C.filter(c=>!c.pago).reduce((s,c)=>s+c.valor,0);
  const ef=C.filter(c=>c.pago&&c.pago.metodo==='Efectivo').reduce((s,c)=>s+c.valor,0);
  const list=C.filter(c=>flt!=='n'&&(flt==='t'||(flt==='p'?!c.pago:!!c.pago))).sort((x,y)=>y.anio-x.anio);
