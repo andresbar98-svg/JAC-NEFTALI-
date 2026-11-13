@@ -311,7 +311,7 @@ function Recibo({c,C,af,S,onClose}){
  /* Todas las medidas están en píxeles de la imagen original (1024 x 1536) y se escalan solas */
  const pos=(x0,y0,x1,y1)=>({position:'absolute',left:(x0/10.24)+'%',top:(y0/15.36)+'%',width:((x1-x0)/10.24)+'%',height:((y1-y0)/15.36)+'%'});
  const fs=n=>(n/10.24).toFixed(3)+'cqw';
- const R={nit:[393,298,767,347],afi:[325,485,980,531],ced:[325,534,980,580],pre:[325,584,980,630],tel:[325,634,980,680],per:[412,707,636,752],lim:[412,770,636,815],anio:[716,733,968,778],valor:[225,955,955,1069],bar:[44,1124,976,1264],atr:[192,851,278,892],vant:[526,846,640,881],pan:[776,826,960,881]};
+ const R={nit:[393,298,767,347],afi:[325,485,980,531],ced:[325,534,980,580],pre:[325,584,980,630],tel:[325,634,980,680],per:[412,707,636,752],lim:[412,770,636,815],anio:[716,733,968,778],valor:[225,955,955,1069],bar:[44,1150,976,1266],atr:[192,851,278,892],vant:[526,846,640,881],pan:[776,826,960,881]};
  const Fld=(t,r0,base,o={})=>{t=String(t==null?'':t);const r=[r0[0],r0[1]-(o.up||0),r0[2],r0[3]],W=r[2]-r[0]-(o.pad||0)*2,s=fitSize(t,o.ff||SANS,o.fw||800,base,W,o.cw||0.56);
   return html`<div style=${{...pos(...r),display:'flex',alignItems:o.al||'center',justifyContent:o.jc||'center',overflow:'hidden',whiteSpace:'nowrap',boxSizing:'border-box',padding:'0 '+fs(o.pad||0)+' '+fs(o.pb||0),fontFamily:o.ff||SANS,fontWeight:o.fw||800,color:o.color||NV,fontSize:fs(s),lineHeight:1.15}}>${t}</div>`};
  const L={jc:'flex-start',al:'flex-end',pad:6,pb:1,up:14};
@@ -332,8 +332,8 @@ function Recibo({c,C,af,S,onClose}){
   ${Fld(vv,vr,100,{fw:800,cw:0.7,ff:"Montserrat,'Nunito',Arial,sans-serif"})}
   ${c.pago&&html`<div style=${{...pos(600,512,992,722),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:fs(9)+' solid #15803d',borderRadius:fs(22),color:'#15803d',background:'rgba(255,255,255,.15)',opacity:.72,transform:'rotate(-6deg)',boxSizing:'border-box',fontFamily:SANS,fontWeight:800,lineHeight:1.15,textAlign:'center'}}><div style=${{fontSize:fs(86),letterSpacing:fs(5)}}>PAGADO</div><div style=${{fontSize:fs(42),fontWeight:800}}>${c.pago.metodo==='Efectivo'?'Efectivo':'Transferencia'}</div><div style=${{fontSize:fs(38),fontWeight:700}}>${fd(c.pago.fecha)}</div></div>`}
   <div style=${{...pos(...R.bar),display:'flex',flexDirection:'column',justifyContent:bc?'space-between':'center',alignItems:'stretch',overflow:'hidden'}}>
-   ${bc&&html`<div style=${{flex:'0 0 46%',background:'#fff',overflow:'hidden'}}><${Barcode} code=${bc} fill=${1}/></div><div style=${{fontFamily:'monospace',fontSize:fs(21),lineHeight:1.2,color:'#222',whiteSpace:'nowrap',textAlign:'center'}}>${hum}</div>`}
-   <div style=${{fontFamily:SANS,fontSize:fs(27),fontWeight:700,lineHeight:1.25,color:NV,textAlign:'center'}}>${inst}</div>
+   ${bc&&html`<div style=${{flex:'1 1 0',minHeight:0,marginBottom:fs(4),background:'#fff',overflow:'hidden'}}><${Barcode} code=${bc} fill=${1}/></div><div style=${{fontFamily:'monospace',fontSize:fs(19),lineHeight:1.2,color:'#222',whiteSpace:'nowrap',textAlign:'center'}}>${hum}</div>`}
+   <div style=${{fontFamily:SANS,fontSize:fs(21),fontWeight:700,lineHeight:1.2,color:NV,textAlign:'center'}}>${inst}</div>
   </div>
  </div>
  <${Actions} text=${txt} onClose=${onClose} onPrint=${()=>window.print()}/><//>`}
